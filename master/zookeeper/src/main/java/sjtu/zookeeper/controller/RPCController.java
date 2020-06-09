@@ -39,50 +39,19 @@ public class RPCController {
                                                    value = "value for this key",
                                                    example = "valuetest",
                                                    required = true) @PathVariable("value") String value) {
-        String leader = Clusters.getClusterInfo().getMaster();
+        List<String> liveNodes = Clusters.getClusterInfo().getLiveNodes();
 
-        // If I am leader I will broadcast data to all live nodes, else forward request to leader
-        if (amILeader()) {
-            List<String> liveNodes = Clusters.getClusterInfo().getLiveNodes();
-//            int noofvirtualnodes = 4; // assume there are n nodes constantly such that a new server will always take over a fail service
-            int successCount = 0;
-//
-//            // we should do consistent hashing here to distribute data
-//            int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
-//            Collections.sort(liveNodes);
-//            List<String> placeNode = new ArrayList<>();
-//            placeNode.add(liveNodes.get(hashcode));
-//            placeNode.add(liveNodes.get(hashcode-1));
+        // we should do consistent hashing here to distribute data
+        int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
+        int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
+        Collections.sort(liveNodes);
+        String nodetosend = liveNodes.get(hashcode);
 
-            for (String node : liveNodes) {
-                if (getHostPostOfServer().equals(node)) { // save in memory
-                    DataStorage.setData(key, value);
-                    successCount++;
-                } else { // broadcast to slave nodes
-                    String requestUrl =
-                            "http://"
-                                    .concat(node)
-                                    .concat("data")
-                                    .concat("/")
-                                    .concat("syncadd")
-                                    .concat("/")
-                                    .concat(String.valueOf(key))
-                                    .concat("/")
-                                    .concat(value);
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.add("request_from", leader);
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    HttpEntity<String> entity = new HttpEntity<>(headers);
-                    restTemplate.exchange(requestUrl, HttpMethod.PUT, entity, String.class).getBody();
-                    successCount++;
-                }
-            }
-
-            return ResponseEntity.ok().body("Successfully update ".concat(String.valueOf(successCount)).concat(" nodes"));
-        } else { // forward to leader
+        // 2 phase commit here
+        if (checkheartbeat(nodetosend)) { // if positive heartbeat
             String requestUrl =
                     "http://"
-                            .concat(leader)
+                            .concat(nodetosend)
                             .concat("data")
                             .concat("/")
                             .concat("put")
@@ -90,34 +59,77 @@ public class RPCController {
                             .concat(String.valueOf(key))
                             .concat("/")
                             .concat(value);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
+            HttpHeaders headers2 = new HttpHeaders();
+            headers2.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity2 = new HttpEntity<>(headers2);
 
             // this is to make sure leader get the data. Else timeout
-            return restTemplate.exchange(requestUrl, HttpMethod.PUT, entity, String.class);
+            return restTemplate.exchange(requestUrl, HttpMethod.PUT, entity2, String.class); // committed!
+        } else { // if requested server fails
+            if (hashcode == 0) { // get next node
+                hashcode++;
+                nodetosend = liveNodes.get(hashcode);
+                String requestUrl =
+                        "http://"
+                                .concat(nodetosend)
+                                .concat("data")
+                                .concat("/")
+                                .concat("put")
+                                .concat("/")
+                                .concat(String.valueOf(key))
+                                .concat("/")
+                                .concat(value);
+                HttpHeaders headers2 = new HttpHeaders();
+                headers2.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<String> entity2 = new HttpEntity<>(headers2);
+
+                // this is to make sure leader get the data. Else timeout
+                return restTemplate.exchange(requestUrl, HttpMethod.PUT, entity2, String.class); // committed!
+            } else { // get previous node
+                hashcode--;
+                nodetosend = liveNodes.get(hashcode);
+                String requestUrl =
+                        "http://"
+                                .concat(nodetosend)
+                                .concat("data")
+                                .concat("/")
+                                .concat("put")
+                                .concat("/")
+                                .concat(String.valueOf(key))
+                                .concat("/")
+                                .concat(value);
+                HttpHeaders headers2 = new HttpHeaders();
+                headers2.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<String> entity2 = new HttpEntity<>(headers2);
+
+                // this is to make sure leader get the data. Else timeout
+                return restTemplate.exchange(requestUrl, HttpMethod.PUT, entity2, String.class); // committed!
+            }
+        }
+    }
+
+    private boolean checkheartbeat(String nodeToSend) {
+        String requestUrl =
+                "http://"
+                        .concat(nodeToSend)
+                        .concat("clusters/heartbeat")
+                        .concat("/");
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("request_from", "coordinator");
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        HttpStatus returnstatus = restTemplate.exchange(requestUrl, HttpMethod.PUT, entity, String.class).getStatusCode();
+
+        if (returnstatus == HttpStatus.OK) {
+            return true;
+        } else {
+            return false;
         }
     }
 
     private boolean amILeader() {
         String leader = Clusters.getClusterInfo().getMaster();
         return getHostPostOfServer().equals(leader);
-    }
-
-    @ApiIgnore
-    @PutMapping("/data/syncadd/{key}/{value}")
-    public ResponseEntity<String> syncaddData(HttpServletRequest request, @PathVariable("key") String key, @PathVariable("value") String value) {
-        DataStorage.setData(key, value);
-
-        return ResponseEntity.ok("SUCCESS");
-    }
-
-    @ApiIgnore
-    @GetMapping("/data/syncdelete/{key}")
-    public ResponseEntity<String> syncdeleteData(HttpServletRequest request, @PathVariable("key") String key) {
-        DataStorage.deleteData(key);
-
-        return ResponseEntity.ok("SUCCESS");
     }
 
     @ApiOperation(value = "READ", notes = "read a value from database")
@@ -128,13 +140,28 @@ public class RPCController {
                                                   value = "key of the data you wish to read",
                                                   example = "keytest",
                                                   required = true) @PathVariable("key") String key) {
-        String result = DataStorage.getData(key);
+        List<String> liveNodes = Clusters.getClusterInfo().getLiveNodes();
 
-        if (result == null) {
-            return ResponseEntity.badRequest().body("no such key found");
-        } else {
-            return ResponseEntity.ok(result);
-        }
+        // we should do consistent hashing here to distribute data
+        int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
+        int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
+        Collections.sort(liveNodes);
+        String nodetosend = liveNodes.get(hashcode);
+
+        String requestUrl =
+                "http://"
+                        .concat(nodetosend)
+                        .concat("data")
+                        .concat("/")
+                        .concat("get")
+                        .concat("/")
+                        .concat(key);
+        HttpHeaders headers2 = new HttpHeaders();
+        headers2.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity2 = new HttpEntity<>(headers2);
+
+        // this is to make sure leader get the data. Else timeout
+        return restTemplate.exchange(requestUrl, HttpMethod.GET, entity2, String.class);
     }
 
     @ApiOperation(value = "DELETE", notes = "remove a data from database")
@@ -145,71 +172,74 @@ public class RPCController {
                                                      value = "key for the data you wish to remove",
                                                      example = "test1",
                                                      required = true) @PathVariable("key") String key) {
-        String leader = Clusters.getClusterInfo().getMaster();
+        List<String> liveNodes = Clusters.getClusterInfo().getLiveNodes();
 
-        // If I am leader I will broadcast data to all live nodes, else forward request to leader
-        if (amILeader()) {
-            List<String> liveNodes = Clusters.getClusterInfo().getLiveNodes();
-            int successCount = 0;
+        // we should do consistent hashing here to distribute data
+        int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
+        int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
+        Collections.sort(liveNodes);
+        String nodetosend = liveNodes.get(hashcode);
 
-            for (String node : liveNodes) {
-                if (getHostPostOfServer().equals(node)) { // save in memory
-                    DataStorage.deleteData(key);
-                    successCount++;
-                } else { // broadcast to slave nodes
-                    String requestUrl =
-                            "http://"
-                                    .concat(node)
-                                    .concat("data")
-                                    .concat("/")
-                                    .concat("syncdelete")
-                                    .concat("/")
-                                    .concat(String.valueOf(key));
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.add("request_from", leader);
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    HttpEntity<String> entity = new HttpEntity<>(headers);
-                    restTemplate.exchange(requestUrl, HttpMethod.PUT, entity, String.class).getBody();
-                    successCount++;
-                }
-            }
-
-            return ResponseEntity.ok().body("Successfully update ".concat(String.valueOf(successCount)).concat(" nodes"));
-        } else { // forward to leader
+        // 2 phase commit here
+        if (checkheartbeat(nodetosend)) { // if positive heartbeat
             String requestUrl =
                     "http://"
-                            .concat(leader)
+                            .concat(nodetosend)
                             .concat("data")
                             .concat("/")
                             .concat("delete")
                             .concat("/")
                             .concat(String.valueOf(key));
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
+            HttpHeaders headers2 = new HttpHeaders();
+            headers2.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity2 = new HttpEntity<>(headers2);
 
             // this is to make sure leader get the data. Else timeout
-            return restTemplate.exchange(requestUrl, HttpMethod.PUT, entity, String.class);
+            return restTemplate.exchange(requestUrl, HttpMethod.DELETE, entity2, String.class); // committed!
+        } else { // if requested server fails
+            if (hashcode == 0) { // get next node
+                hashcode++;
+                nodetosend = liveNodes.get(hashcode);
+                String requestUrl =
+                        "http://"
+                                .concat(nodetosend)
+                                .concat("data")
+                                .concat("/")
+                                .concat("delete")
+                                .concat("/")
+                                .concat(String.valueOf(key));
+                HttpHeaders headers2 = new HttpHeaders();
+                headers2.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<String> entity2 = new HttpEntity<>(headers2);
+
+                // this is to make sure leader get the data. Else timeout
+                return restTemplate.exchange(requestUrl, HttpMethod.DELETE, entity2, String.class); // committed!
+            } else { // get previous node
+                hashcode--;
+                nodetosend = liveNodes.get(hashcode);
+                String requestUrl =
+                        "http://"
+                                .concat(nodetosend)
+                                .concat("data")
+                                .concat("/")
+                                .concat("delete")
+                                .concat("/")
+                                .concat(String.valueOf(key));
+                HttpHeaders headers2 = new HttpHeaders();
+                headers2.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<String> entity2 = new HttpEntity<>(headers2);
+
+                // this is to make sure leader get the data. Else timeout
+                return restTemplate.exchange(requestUrl, HttpMethod.DELETE, entity2, String.class); // committed!
+            }
         }
     }
 
-    @ApiOperation(value = "READALL", notes = "display all key value data in current machine")
-    @GetMapping("/data/getall")
-    public ResponseEntity<Map<String, String>> getData() {
-        return ResponseEntity.ok(DataStorage.getDataListFromStorage());
-    }
 
     @ApiOperation(value = "NODES", notes = "display master node, live nodes and all nodes")
     @GetMapping("/clusters/view")
-    public ResponseEntity<Clusters> getClusterinfo() {
+    public ResponseEntity<List> getClusterinfo() {
         return ResponseEntity.ok(Clusters.getClusterInfo());
-    }
-
-    @ApiIgnore
-    @GetMapping("/clusters/heartbeat")
-    // this method is required to do 2 phase commit
-    public ResponseEntity<String> getHeartbeat() {
-        return ResponseEntity.ok().body("alive");
     }
 
 }
