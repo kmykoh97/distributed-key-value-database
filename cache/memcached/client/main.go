@@ -40,18 +40,18 @@ func printHelpMessage() {
 	fmt.Println(`Usage: COMMAND [command-specific-options]
 
 	# core API
-    put [key] [value]    # sets a key-value pair if not present
-    update [key] [value] # updates a key-value pair if present
-    has [key]            # determines if key is present
-    delete [key]          # remove key from store
+    	put [key] [value]    # sets a key-value pair if not present
+    	update [key] [value] # updates a key-value pair if present
+    	has [key]            # determines if key is present
+    	delete [key]         # remove key from store
 	get [key]            # retrieve key from store
 	
 	# additional API
-    count                # retrieve number of key-value pairs in store
-    show keys            # show all keys in store
-    show data            # show all key-value pairs in store
-    show namespaces      # show all namespaces in store
-    use [namespace]      # select a namespace
+    	count                # retrieve number of key-value pairs in store
+    	show keys            # show all keys in store
+    	show data            # show all key-value pairs in store
+    	show namespaces      # show all namespaces in store
+    	use [namespace]      # select a namespace
 	`)
 }
 

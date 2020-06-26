@@ -11,10 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"net/http"
-	"io"
-	"strings"
-
 	"github.com/imjching/keev/auth"
 	"github.com/imjching/keev/protobuf"
 

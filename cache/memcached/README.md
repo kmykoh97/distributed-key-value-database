@@ -1,10 +1,10 @@
-## keev
+# Implementation of RPC and distributed cache using Memcached for CDN
 
-keev is a simple key-value store built on top of hash tables using Go. Clients communicate with the server using gRPC and Google Protocol Buffers (protobufs). Data persist to disk and saving occurs every 5 minutes.
+A simple client side coordinator for distributed key-value store built on top of hash tables using Go. User(client) communicate with coordinator(server) using gRPC and Google Protocol Buffers(protobufs). Data persist to disk or removed from disk every 5 minutes.
 
 ## Architecture
 
-High-level overview:
+High-level overview:  
 
                  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
                                       Clients
@@ -15,25 +15,31 @@ High-level overview:
                                         │
                                         ▼
                  ┌───────────────────────────────────────────────┐
-                 │                    gRPC                       │
+                 │                   Servers                     │-----> coordinator server clusters
                  └───────────────────────────────────────────────┘
                  ┌───────────────────────────────────────────────┐
                  │                 RAM or disk                   │
                  └───────────────────────────────────────────────┘
 
-Database current accepts the following commands:
-- SET key value (valid if key is not present)
+## core API
+
+Common API:  
+- PUT key value (valid if key is not present)
 - UPDATE key value (valid if key is present)
 - HAS key
-- UNSET key
+- DELETE key
 - GET key
+
+Additional API:  
 - COUNT
 - SHOW KEYS
 - SHOW DATA
+
+Security and Authentication API:  
 - SHOW NAMESPACES
 - USE namespace
 
-Restrictions:
+Restrictions:  
 * Both `key` and `value` cannot contain spaces.
 * `key` cannot contain dots.
 * Only alphanumeric characters are allowed for `namespace`
@@ -42,7 +48,7 @@ Restrictions:
 
 1. Generate certificates for RPC: `go run generate_cert.go --host=localhost`
 
-2. Change `JWTSigningToken` in `common/jwt.go`.
+2. Change `JWTSigningToken` in `common/jwt.go`(for authenticator, ignore if not used)
 
 3. Define a list of users in `data/users.json`.
     Sample:
@@ -50,29 +56,33 @@ Restrictions:
     [
       {
         "username": "admin",
-        "password": "admin123",
+        "password": "password",
         "perms": ["ADMIN"]
       },
       {
         "username": "user",
-        "password": "user123",
+        "password": "userpassword",
         "perms": []
       }
     ]
     ```
 
+4. To run, build all the Go binaries then run:
 Server: `./server`
-Client: `./client --username="user" --password="user123"`
+Client: `./client --username="user" --password="userpassword"`
 
-## Program
-
-### Server
-![server.png](server.png)
+## Example
 
 ### Client
-![client.png](client.png)
 
-## Future work?
+![client.png](./../../img/client.png)
+
+### Server
+
+![server.png](./../../img/server.png)
+
+## Future work
+
 - [ ] Permissions for users
 - [ ] Tests
 - [ ] Logs

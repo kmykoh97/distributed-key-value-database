@@ -4,6 +4,10 @@ import (
 	"regexp"
 	"strings"
 
+	"log"
+	"fmt"
+	"net/http"
+
 	"github.com/dgrijalva/jwt-go"
 	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"github.com/imjching/keev/cmap"
@@ -55,29 +59,30 @@ func verifyToken(ctx context.Context) (*Token, error) {
 	return nil, InvalidTokenErr
 }
 
-func putRequest(url string, data io.Reader)  {
-	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPut, url, data)
-
-	if err != nil {
-		// handle error
-		log.Fatal(err)
-	}
-	
-	// Print the HTTP Status Code and Status Name
-    fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
-
-    if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-        fmt.Println("Success")
-    } else {
-        fmt.Println("Fail")
-	}
-}
-
 // Inserts a key-value pair into a namespace, if not present
 func (s *Server) Set(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, error) {
-	putRequest("http://?:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	// first contact server
+	request, err := http.NewRequest(http.MethodPut, "http://34.236.38.81:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	client := &http.Client{}
+	resp, err := client.Do(request)
+	
+	if err != nil {
+        	log.Fatal(err)
+    	}
 
+	// Don't forget, you're expected to close response body even if you don't want to read it.
+	// defer resp.Body.close()
+
+    	// Print the HTTP Status Code and Status Name
+    	fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
+
+    	if resp.StatusCode == http.StatusOK {
+        	fmt.Println("Success")
+    	} else {
+        	fmt.Println("Fail")
+	}
+
+	// continue
 	token, err := verifyToken(ctx)
 	if err != nil {
 		return nil, err
@@ -91,8 +96,28 @@ func (s *Server) Set(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, er
 
 // Updates a key-value pair in a namespace, if present
 func (s *Server) Update(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, error) {
-	putRequest("http://?:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	// first contact server
+	request, err := http.NewRequest(http.MethodPut, "http://34.236.38.81:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	client := &http.Client{}
+	resp, err := client.Do(request)
 	
+    	if err != nil {
+        log.Fatal(err)
+	}
+	
+	// Don't forget, you're expected to close response body even if you don't want to read it.
+	// defer resp.Body.close()
+
+    	// Print the HTTP Status Code and Status Name
+    	fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
+
+    	if resp.StatusCode == http.StatusOK {
+        	fmt.Println("Success")
+    	} else {
+        	fmt.Println("Fail")
+	}
+
+	// continue
 	token, err := verifyToken(ctx)
 	if err != nil {
 		return nil, err
@@ -122,18 +147,21 @@ func (s *Server) Has(ctx context.Context, in *pb.Key) (*pb.Response, error) {
 // Removes a key in a namespace and returns the KVP, if present
 func (s *Server) Unset(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error) {
 	// first contact server
-	resp, err := http.Delete("http://?:8081/data/" + in.Key)
-    if err != nil {
-        log.Fatal(err)
-    }
+	request, err := http.NewRequest(http.MethodDelete, "http://34.236.38.81:8081/data/delete/" + in.Key, strings.NewReader("any thing"))
+	client := &http.Client{}
+	resp, err := client.Do(request)
 
-    // Print the HTTP Status Code and Status Name
-    fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
+	if err != nil {
+        	log.Fatal(err)
+    	}
 
-    if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-        fmt.Println("Success")
-    } else {
-        fmt.Println("Fail")
+    	// Print the HTTP Status Code and Status Name
+    	fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
+
+    	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+        	fmt.Println("Success")
+    	} else {
+        	fmt.Println("Fail")
 	}
 
 	// completed, now do caching
@@ -152,18 +180,18 @@ func (s *Server) Unset(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error
 // Retrieves an element from a namespace under given key
 func (s *Server) Get(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error) {
 	// first contact server
-	resp, err := http.Get("http://?:8081/data/get/" + in.Key)
-    if err != nil {
-        log.Fatal(err)
-    }
+	resp, err := http.Get("http://34.236.38.81:8081/data/get/" + in.Key)
+    	if err != nil {
+        	log.Fatal(err)
+    	}
 
-    // Print the HTTP Status Code and Status Name
-    fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
+    	// Print the HTTP Status Code and Status Name
+    	fmt.Println("HTTP Response Status:", resp.StatusCode, http.StatusText(resp.StatusCode))
 
-    if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-        fmt.Println("Success")
-    } else {
-        fmt.Println("Fail")
+    	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+        	fmt.Println("Success")
+    	} else {
+        	fmt.Println("Fail")
 	}
 
 	// completed, now do caching
@@ -277,3 +305,4 @@ func (s *Server) UseNamespace(ctx context.Context, in *pb.Namespace) (*pb.Namesp
 	}
 	return &pb.NamespaceResponse{Token: ss}, nil
 }
+
