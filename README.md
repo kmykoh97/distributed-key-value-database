@@ -1,6 +1,6 @@
 # Distributed Key Value Database
 
-A complex design of distributed key value storing system aiming for low latency, high availability and partition tolerance
+Distributed key value storing system aiming for low latency, high availability and partition tolerance
 
 ## Suitable use case for this design
 
@@ -19,7 +19,7 @@ A complex design of distributed key value storing system aiming for low latency,
 1. Users communicate with client coordinator through gRPC.
 2. Upon receiving read request, client coordinator will first check distributed cache(CDN) for data. If unavailable in cache, client coordinator will contact server coordinator.
 3. Server coordinators are implemented as a cluster managed by Zookeeper for Primary-Backup model.
-4. Server coordinator will first preprocess the data then distribute them to required data clusters through consistent hashing.
+4. Server coordinator will first preprocess the data then distribute them to required data clusters through consistent hashing(for load-balance).
 4. Every data write operation will be safecheck completion through 2-phase commit to ensure final consistency.
 5. Data read not required to do any safecheck to ensure performance and latency.
 
@@ -32,7 +32,7 @@ A complex design of distributed key value storing system aiming for low latency,
 
 1. Every machine is capable to store key value data in RAM and then to disk periodically if not read in a fix timer.
 2. Design philosophy will follow master slave design. The election of master is implemented using Ephemeral ZNodes in Zookeeper.
-3. Only master is capable of serving update request while all master or slave servers are capable of serving read request。
+3. Only master is capable of serving update request while all master or slave servers are capable of serving read request.
 4. When a server coordinator send an update request to data node, request will always forwarded to master in the respective cluster.
 5. Master server will do all the required storage procedure then broadcast commited operations to all slave nodes in the cluster.
 6. Any node in the cluster is capable to serve read request(therefore server coordinators are designed to do load balancing).
@@ -40,6 +40,17 @@ A complex design of distributed key value storing system aiming for low latency,
 8. All slave nodes periodically sync data with master server(this is needed as data write broadcast might lost and we need to ensure all nodes in the cluster store the same data).
 
 [data nodes](./data/zookeeper)
+
+### Requirements
+
+- Node - Multiple machines in Amazon Cloud managed by Zookeeper
+- Communication 
+    - client-server communication - Implemented by gRPC
+    - server-server communication - Implemented by REST
+- Data Format - Key Value
+- Partition & Scalability - Multiple nodes capable to serve as primary backup model and write controlled by master-slave model
+- Concurrency Data Accessing - Implemented through Java Concurrent Map and Zookeeper distributed lock
+- High Availability - Zookeeper to determine node condition and elect new leader/master
 
 ## Usage
 
