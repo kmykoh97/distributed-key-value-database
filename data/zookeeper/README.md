@@ -14,6 +14,6 @@ Implementation of distributed data node clusters in this distributed key value d
 
 ## Example
 
-![](./../../img/delete.png)
-![](./../../img/get.png)
-![](./../../img/put.png)
+![](./../../img/delete.PNG)
+![](./../../img/get.PNG)
+![](./../../img/put.PNG)

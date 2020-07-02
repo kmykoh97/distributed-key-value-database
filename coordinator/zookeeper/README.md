@@ -15,4 +15,4 @@ Implementaion of server coordinator in this distributed key value database. Thes
 ## Example
 
 ![](./../../img/coordinator.PNG)
-![](./../../img/clusterdata.png)
+![](./../../img/clusterdata.PNG)

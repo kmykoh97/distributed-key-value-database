@@ -75,11 +75,11 @@ Client: `./client --username="user" --password="userpassword"`
 
 ### Client
 
-![client.png](./../../img/client.png)
+![client.PNG](./../../img/client.PNG)
 
 ### Server
 
-![server.png](./../../img/server.png)
+![server.PNG](./../../img/server.PNG)
 
 ## Future work
 
