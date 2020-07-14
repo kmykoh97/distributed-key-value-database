@@ -45,7 +45,7 @@ public class RPCController {
         int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
         int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
         Collections.sort(liveNodes);
-        String nodetosend = liveNodes.get(hashcode);
+        String nodetosend = liveNodes.get(Math.abs(hashcode));
 
         // 2 phase commit here
         if (checkheartbeat(nodetosend)) { // if positive heartbeat
@@ -148,7 +148,7 @@ public class RPCController {
         int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
         int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
         Collections.sort(liveNodes);
-        String nodetosend = liveNodes.get(hashcode);
+        String nodetosend = liveNodes.get(Math.abs(hashcode));
 
         String requestUrl =
                 "http://"
@@ -180,7 +180,7 @@ public class RPCController {
         int noofvirtualnodes = 6; // assume there are n nodes constantly such that a new server will always take over a fail service
         int hashcode = key.hashCode() % (noofvirtualnodes); // use java native hashing method
         Collections.sort(liveNodes);
-        String nodetosend = liveNodes.get(hashcode);
+        String nodetosend = liveNodes.get(Math.abs(hashcode));
 
         // 2 phase commit here
         if (checkheartbeat(nodetosend)) { // if positive heartbeat

@@ -1,6 +1,6 @@
 # Implementation of RPC and distributed cache using Memcached for CDN
 
-A simple client side coordinator for distributed key-value store built on top of hash tables using Go. User(client) communicate with coordinator(server) using gRPC and Google Protocol Buffers(protobufs). Data persist to disk or removed from disk every 5 minutes.
+A simple client side coordinator for distributed key-value store built on top of hash tables using Go. User(client) communicate with coordinator(server) using gRPC and Google Protocol Buffers(protobufs). Data persist to disk and saving occurs every 5 minutes.
 
 ## Architecture
 
@@ -75,11 +75,11 @@ Client: `./client --username="user" --password="userpassword"`
 
 ### Client
 
-![client.PNG](./../../img/client.PNG)
+![client.png](img/client.png)
 
 ### Server
 
-![server.PNG](./../../img/server.PNG)
+![server.png](img/server.png)
 
 ## Future work
 

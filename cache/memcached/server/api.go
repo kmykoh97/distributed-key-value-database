@@ -62,7 +62,7 @@ func verifyToken(ctx context.Context) (*Token, error) {
 // Inserts a key-value pair into a namespace, if not present
 func (s *Server) Set(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, error) {
 	// first contact server
-	request, err := http.NewRequest(http.MethodPut, "http://34.236.38.81:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	request, err := http.NewRequest(http.MethodPut, "http://localhost:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	
@@ -97,7 +97,7 @@ func (s *Server) Set(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, er
 // Updates a key-value pair in a namespace, if present
 func (s *Server) Update(ctx context.Context, in *pb.KeyValuePair) (*pb.Response, error) {
 	// first contact server
-	request, err := http.NewRequest(http.MethodPut, "http://34.236.38.81:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
+	request, err := http.NewRequest(http.MethodPut, "http://localhost:8081/data/put/" + in.Key + "/" + in.Value, strings.NewReader("any thing"))
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	
@@ -147,9 +147,7 @@ func (s *Server) Has(ctx context.Context, in *pb.Key) (*pb.Response, error) {
 // Removes a key in a namespace and returns the KVP, if present
 func (s *Server) Unset(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error) {
 	// first contact server
-	request, err := http.NewRequest(http.MethodDelete, "http://34.236.38.81:8081/data/delete/" + in.Key, strings.NewReader("any thing"))
-	client := &http.Client{}
-	resp, err := client.Do(request)
+	resp, err := http.Get("http://localhost:8081/data/delete/" + in.Key)
 
 	if err != nil {
         	log.Fatal(err)
@@ -180,7 +178,7 @@ func (s *Server) Unset(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error
 // Retrieves an element from a namespace under given key
 func (s *Server) Get(ctx context.Context, in *pb.Key) (*pb.KeyValuePair, error) {
 	// first contact server
-	resp, err := http.Get("http://34.236.38.81:8081/data/get/" + in.Key)
+	resp, err := http.Get("http://localhost:8081/data/get/" + in.Key)
     	if err != nil {
         	log.Fatal(err)
     	}
